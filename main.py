@@ -1,11 +1,10 @@
 import re
-from itertools import permutations, product
+from itertools import product
 
 class LogicPuzzleCSP:
     def __init__(self, data_file, clues_file):
         self.attributes, self.values = self.parse_data_file(data_file)
         self.clues = self.parse_clues_file(clues_file)
-        self.variables = self.initialize_variables()
         self.assignments = {f'subject{i}': {} for i in range(4)}
 
     def parse_data_file(self, data_file):
@@ -32,21 +31,17 @@ class LogicPuzzleCSP:
 
     def initialize_variables(self):
         # Define initial domains for each subject and each attribute
-        subjects = {f'subject{i}': {} for i in range(4)}
-        
-        for subject in subjects:
+        for i in range(4):
             for attribute in self.attributes:
-                subjects[subject][attribute] = set(self.values[attribute])
-        
-        return subjects
+                self.assignments[f'subject{i}'][attribute] = None
 
     def solve(self):
         # Generate all possible assignments
-        domains = [list(product(*[self.values[attr] for attr in self.attributes]))]
-        for assignment in domains[0]:
-            for i, attr_values in enumerate(assignment):
+        domains = list(product(*[self.values[attr] for attr in self.attributes]))
+        for assignment in domains:
+            for i in range(4):
                 for j, attr in enumerate(self.attributes):
-                    self.assignments[f'subject{i}'][attr] = attr_values[j]
+                    self.assignments[f'subject{i}'][attr] = assignment[j]
             if self.apply_constraints():
                 return self.assignments
         return None
@@ -106,7 +101,6 @@ class LogicPuzzleCSP:
         return len(values) == len(set(values))
 
     def apply_one_of_constraint(self, clue):
-        # Process "one of {x=a, y=b} corresponds to z=c other t=d" constraints
         match = re.findall(r"(\w+)=(\w+)", clue)
         if match:
             attr_a, val_a, attr_b, val_b = match[0][0], match[0][1], match[1][0], match[1][1]
@@ -115,18 +109,14 @@ class LogicPuzzleCSP:
         return True
 
     def display_solution(self):
-        # Check if the first attribute contains numeric values
         try:
-            # Try to convert the first attribute's value for each assignment to int
             sorted_subjects = sorted(
                 self.assignments.items(),
                 key=lambda x: int(x[1][self.attributes[0]]) if x[1][self.attributes[0]].isdigit() else float('inf')
             )
         except ValueError:
-            # If conversion fails, fallback to sorting by string (alphabetically)
             sorted_subjects = sorted(self.assignments.items(), key=lambda x: x[1][self.attributes[0]])
 
-        # Display the sorted results
         print(" | ".join(self.attributes))
         print("-" * 40)
         for _, assignment in sorted_subjects:

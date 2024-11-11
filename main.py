@@ -69,9 +69,8 @@ class LogicPuzzleCSP:
 
         current_subject = f'subject{subject_index}'
         for values in product(*[self.values[attr] for attr in self.attributes]):
-            # Check for duplicate assignments across all subjects
             if any((attr, value) in self.assigned_values for attr, value in zip(self.attributes, values)):
-                continue  # Skip this assignment and try the next one
+                continue
 
             for attr, value in zip(self.attributes, values):
                 self.assignments[current_subject][attr] = value
@@ -82,7 +81,6 @@ class LogicPuzzleCSP:
                 if solution:
                     return solution
 
-            # Reset the subject's assignments and remove assigned values
             for attr, value in zip(self.attributes, values):
                 self.assignments[current_subject][attr] = None
                 self.assigned_values.remove((attr, value))
@@ -142,8 +140,8 @@ class LogicPuzzleCSP:
 
     def apply_different_constraint(self, clue):
         attributes = re.findall(r"(\w+)=(\w+)", clue)
-        values = [self.assignments[subject].get(attribute) for attribute, value in attributes]
-        return len(values) == len(set(values))
+        assigned_values = [(subject, self.assignments[subject].get(attribute)) for subject in self.assignments for attribute, value in attributes]
+        return len(set([val for subject, val in assigned_values if val is not None])) == len(attributes)
 
     def apply_either_constraint(self, clue):
         match = re.match(r"if (\w+)=(\w+) then either (.+) or (.+)", clue)

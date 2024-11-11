@@ -108,13 +108,6 @@ class LogicPuzzleCSP:
             elif "one of" in clue:
                 if not self.apply_one_of_constraint(clue):
                     return False
-            # Add specific constraints for problem 1 and 2 here
-            elif self.problem_number == 1:
-                # Check for problem 1 specific constraints, e.g., age-related constraints
-                pass
-            elif self.problem_number == 2:
-                # Check for problem 2 specific constraints
-                pass
         return True
 
     def apply_if_then_constraint(self, clue):
@@ -130,17 +123,21 @@ class LogicPuzzleCSP:
         return True
 
     def apply_inequality_constraint(self, clue):
-        match = re.match(r"n\((.+)\) (>|<) n\((.+)\)", clue)
+        match = re.match(r"years\((\w+)=(\w+)\) (>|<) years\((\w+)=(\w+)\)", clue)
         if match:
-            attr1, value1 = match.group(1).split('=')
-            attr2, value2 = match.group(2).split('=')
-            for subject1, subject2 in product(self.assignments.items(), self.assignments.items()):
-                if subject1 != subject2:
-                    if subject1[1].get(attr1) == value1 and subject2[1].get(attr2) == value2:
-                        if operator == '>' and not (int(subject1[1]['years']) > int(subject2[1]['years'])):
-                            return False
-                        elif operator == '<' and not (int(subject1[1]['years']) < int(subject2[1]['years'])):
-                            return False
+            x, a, operator, y, b = match.groups()
+            subjects_with_xa = [s for s in self.assignments if self.assignments[s].get(x) == a]
+            subjects_with_yb = [s for s in self.assignments if self.assignments[s].get(y) == b]
+
+            if subjects_with_xa and subjects_with_yb:
+                subject_x = subjects_with_xa[0]
+                subject_y = subjects_with_yb[0]
+                value_x = int(self.assignments[subject_x]['years'])
+                value_y = int(self.assignments[subject_y]['years'])
+                if operator == '>' and not (value_x > value_y):
+                    return False
+                elif operator == '<' and not (value_x < value_y):
+                    return False
         return True
 
     def apply_different_constraint(self, clue):
@@ -185,22 +182,29 @@ class LogicPuzzleCSP:
             return False
 
     def display_solution(self):
-        all_years = sorted(set(int(assignment.get('years', float('inf'))) for assignment in self.assignments.values()))
-        print("years | players | teams | hometowns")
-        print("-" * 40)
-
-        # Loop through years
-        for year in all_years:
-            players, teams, hometowns = "", "", ""
-
-            # Loop through subjects and find matching year
-            for subject, assignment in self.assignments.items():
-                if int(assignment.get('years', -1)) == year:
-                    players = assignment.get('players', '')
-                    teams = assignment.get('teams', '')
-                    hometowns = assignment.get('hometowns', '')
-
-            print(f"{year} | {players} | {teams} | {hometowns}")
+        if self.problem_number == 1:
+            all_years = sorted(set(int(assignment.get('years', float('inf'))) for assignment in self.assignments.values()))
+            print("years | owners | breeds | dogs")
+            print("-" * 40)
+            for year in all_years:
+                for subject, assignment in self.assignments.items():
+                    if int(assignment.get('years', -1)) == year:
+                        owners = assignment.get('owners', '')
+                        breeds = assignment.get('breeds', '')
+                        dogs = assignment.get('dogs', '')
+                        print(f"{year} | {owners} | {breeds} | {dogs}")
+        elif self.problem_number == 2:
+            all_years = sorted(set(int(assignment.get('years', float('inf'))) for assignment in self.assignments.values()))
+            print("years | players | teams | hometowns")
+            print("-" * 40)
+            for year in all_years:
+                players, teams, hometowns = "", "", ""
+                for subject, assignment in self.assignments.items():
+                    if int(assignment.get('years', -1)) == year:
+                        players = assignment.get('players', '')
+                        teams = assignment.get('teams', '')
+                        hometowns = assignment.get('hometowns', '')
+                print(f"{year} | {players} | {teams} | {hometowns}")
 
 if __name__ == "__main__":
     main()

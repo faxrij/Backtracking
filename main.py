@@ -2,10 +2,13 @@ import re
 from itertools import product
 
 class LogicPuzzleCSP:
+    attributes, values = None, None
+    assignments = {f'subject{i}': {} for i in range(4)}
+    assigned_values = set()
+
     def __init__(self, data_file, clues_file):
         self.attributes, self.values = self.parse_data_file(data_file)
         self.clues = self.parse_clues_file(clues_file)
-        self.assignments = {f'subject{i}': {} for i in range(4)}
 
     def parse_data_file(self, data_file):
         attributes = []
@@ -17,33 +20,81 @@ class LogicPuzzleCSP:
                 attribute = parts[0]
                 attributes.append(attribute)
                 values[attribute] = parts[1:]
-        
+
         return attributes, values
 
     def parse_clues_file(self, clues_file):
         clues = []
-        
+
         with open(clues_file, 'r') as f:
             for line in f:
                 clues.append(line.strip())
-        
+
         return clues
 
     def initialize_variables(self):
-        # Define initial domains for each subject and each attribute
         for i in range(4):
             for attribute in self.attributes:
                 self.assignments[f'subject{i}'][attribute] = None
 
     def solve(self):
-        # Generate all possible assignments
-        domains = list(product(*[self.values[attr] for attr in self.attributes]))
-        for assignment in domains:
-            for i in range(4):
-                for j, attr in enumerate(self.attributes):
-                    self.assignments[f'subject{i}'][attr] = assignment[j]
+        self.initialize_variables()
+        return self.backtrack(0)
+
+    def backtrack(self, subject_index):
+        if subject_index == len(self.assignments):
             if self.apply_constraints():
                 return self.assignments
+            return None
+
+        current_subject = f'subject{subject_index}'
+        for values in product(*[self.values[attr] for attr in self.attributes]):
+            # Check for duplicate assignments across all subjects
+            if any((attr, value) in self.assigned_values for attr, value in zip(self.attributes, values)):
+                continue  # Skip this assignment and try the next one
+
+            for attr, value in zip(self.attributes, values):
+                self.assignments[current_subject][attr] = value
+                self.assigned_values.add((attr, value))
+
+            if self.apply_constraints():
+                solution = self.backtrack(subject_index + 1)
+                if solution:
+                    return solution
+
+            # Reset the subject's assignments and remove assigned values
+            for attr, value in zip(self.attributes, values):
+                self.assignments[current_subject][attr] = None
+                self.assigned_values.remove((attr, value))
+        return None
+
+    # ... (rest of the code for applying constraints and displaying solution remains the same) ...
+
+    def backtrack(self, subject_index):
+        if subject_index == len(self.assignments):
+            if self.apply_constraints():
+                return self.assignments
+            return None
+
+        current_subject = f'subject{subject_index}'
+        for values in product(*[self.values[attr] for attr in self.attributes]):
+            # Check for duplicate assignments across all subjects
+            if any((attr, value) in self.assigned_values for attr, value in zip(self.attributes, values)):
+                continue  # Skip this assignment and try the next one
+
+            for attr, value in zip(self.attributes, values):
+                self.assignments[current_subject][attr] = value
+                self.assigned_values.add((attr, value))
+
+            if self.apply_constraints():
+                solution = self.backtrack(subject_index + 1)
+                if solution:
+                    return solution
+
+            # Reset the subject's assignments and remove assigned values
+            for attr, value in zip(self.attributes, values):
+                self.assignments[current_subject][attr] = None
+                self.assigned_values.remove((attr, value))
         return None
 
     def apply_constraints(self):
@@ -57,13 +108,12 @@ class LogicPuzzleCSP:
             elif "are all different" in clue:
                 if not self.apply_different_constraint(clue):
                     return False
-            elif "one of" in clue:
-                if not self.apply_one_of_constraint(clue):
+            elif "either" in clue:
+                if not self.apply_either_constraint(clue):
                     return False
         return True
 
     def apply_if_then_constraint(self, clue):
-        # Process "if x=a then y=b" or "if x=a then not y=b" type constraints
         match = re.match(r"if (\w+)=(\w+) then (not )?(\w+)=(\w+)", clue)
         if match:
             x, a, negate, y, b = match.groups()
@@ -76,8 +126,7 @@ class LogicPuzzleCSP:
         return True
 
     def apply_inequality_constraint(self, clue):
-        # Process numeric inequalities like "n(x=a) > n(y=b)"
-        match = re.match(r"n\((\w+)=(\w+)\) (>|<) n\((\w+)=(\w+)\)", clue)
+        match = re.match(r"years\((\w+)=(\w+)\) (>|<) years\((\w+)=(\w+)\)", clue)
         if match:
             x, a, operator, y, b = match.groups()
             subjects_with_xa = [s for s in self.assignments if self.assignments[s].get(x) == a]
@@ -95,32 +144,35 @@ class LogicPuzzleCSP:
         return True
 
     def apply_different_constraint(self, clue):
-        # Process "{x=a, y=b, z=c} are all different" type constraints
         attributes = re.findall(r"(\w+)=(\w+)", clue)
         values = [self.assignments[subject].get(attribute) for attribute, value in attributes]
         return len(values) == len(set(values))
 
-    def apply_one_of_constraint(self, clue):
-        match = re.findall(r"(\w+)=(\w+)", clue)
+    def apply_either_constraint(self, clue):
+        match = re.match(r"if dogs=(\w+) then either (.+)", clue)
         if match:
-            attr_a, val_a, attr_b, val_b = match[0][0], match[0][1], match[1][0], match[1][1]
-            options = [(attr_a, val_a), (attr_b, val_b)]
-            return any(self.assignments[subject].get(attr) == val for attr, val in options)
+            dog, options = match.groups()
+            options = options.split(" or ")
+            for subject in self.assignments:
+                if self.assignments[subject].get('dogs') == dog:
+                    for option in options:
+                        attr, value = option.split('=')
+                        if self.assignments[subject].get(attr) == value:
+                            return True
+                    return False
         return True
 
     def display_solution(self):
-        try:
-            sorted_subjects = sorted(
-                self.assignments.items(),
-                key=lambda x: int(x[1][self.attributes[0]]) if x[1][self.attributes[0]].isdigit() else float('inf')
-            )
-        except ValueError:
-            sorted_subjects = sorted(self.assignments.items(), key=lambda x: x[1][self.attributes[0]])
-
-        print(" | ".join(self.attributes))
+        all_years = sorted(set(int(assignment.get('years', float('inf'))) for assignment in self.assignments.values()))
+        print("years | owners | breeds | dogs")
         print("-" * 40)
-        for _, assignment in sorted_subjects:
-            print(" | ".join(str(assignment[attr]) for attr in self.attributes))
+        for year in all_years:
+            for subject, assignment in self.assignments.items():
+                if int(assignment.get('years', -1)) == year:
+                    owners = assignment.get('owners', '')
+                    breeds = assignment.get('breeds', '')
+                    dogs = assignment.get('dogs', '')
+                    print(f"{year} | {owners} | {breeds} | {dogs}")
 
 # Usage example
 puzzle = LogicPuzzleCSP('data-1.txt', 'clues-1.txt')

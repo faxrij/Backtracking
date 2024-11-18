@@ -12,7 +12,7 @@ def main():
     solution = puzzle.solve()
 
     if solution:
-        puzzle.display_solution()
+        puzzle.print_solution()
     else:
         print("No solution found.")
 
@@ -23,14 +23,14 @@ class LogicPuzzleCSP:
     problem_number = None
 
     def __init__(self, data_file, clues_file, problem_number):
-        self.attributes, self.values = self.parse_data_file(data_file)
-        self.clues = self.parse_clues_file(clues_file, problem_number)
+        self.attributes, self.values = self.parse_data(data_file)
+        self.clues = self.parse_clues(clues_file)
         self.num_subjects = len(self.values[self.attributes[0]])
         self.assignments = {f'subject{i}': {} for i in range(self.num_subjects)}
         self.assigned_values = set()
         self.problem_number = problem_number
 
-    def parse_data_file(self, data_file):
+    def parse_data(self, data_file):
         attributes = []
         values = {}
 
@@ -43,7 +43,7 @@ class LogicPuzzleCSP:
 
         return attributes, values
 
-    def parse_clues_file(self, clues_file, problem_number):
+    def parse_clues(self, clues_file):
         clues = []
 
         with open(clues_file, 'r') as f:
@@ -52,13 +52,13 @@ class LogicPuzzleCSP:
 
         return clues
 
-    def initialize_variables(self):
+    def set_variables(self):
         for i in range(self.num_subjects):
             for attribute in self.attributes:
                 self.assignments[f'subject{i}'][attribute] = None
 
     def solve(self):
-        self.initialize_variables()
+        self.set_variables()
         return self.backtrack(0)
 
     def backtrack(self, subject_index):
@@ -141,7 +141,7 @@ class LogicPuzzleCSP:
     def apply_different_constraint(self, clue):
         attributes = re.findall(r"(\w+)=(\w+)", clue)
         assigned_values = [(subject, self.assignments[subject].get(attribute)) for subject in self.assignments for attribute, value in attributes]
-        return len(set([val for subject, val in assigned_values if val is not None])) == len(attributes)
+        return len(set([val for val in assigned_values if val is not None])) == len(attributes)
 
     def apply_either_constraint(self, clue):
         match = re.match(r"if (\w+)=(\w+) then either (.+) or (.+)", clue)
@@ -169,7 +169,7 @@ class LogicPuzzleCSP:
     def apply_one_of_constraint(self, clue):
         match = re.match(r"one of {(.+)} corresponds to (.+) other (.+)", clue)
         if match:
-            options1, cond1, options2, cond2 = match.groups()
+            options1, options2 = match.groups()
             options1 = options1.split(',')
             options2 = options2.split(',')
             for subject1, subject2 in product(self.assignments.items(), self.assignments.items()):
@@ -179,13 +179,13 @@ class LogicPuzzleCSP:
                         return True
             return False
 
-    def display_solution(self):
+    def print_solution(self):
         if self.problem_number == 1:
             all_years = sorted(set(int(assignment.get('years', float('inf'))) for assignment in self.assignments.values()))
             print("years | owners | breeds | dogs")
             print("-" * 40)
             for year in all_years:
-                for subject, assignment in self.assignments.items():
+                for _, assignment in self.assignments.items():
                     if int(assignment.get('years', -1)) == year:
                         owners = assignment.get('owners', '')
                         breeds = assignment.get('breeds', '')
@@ -197,7 +197,7 @@ class LogicPuzzleCSP:
             print("-" * 40)
             for year in all_years:
                 players, teams, hometowns = "", "", ""
-                for subject, assignment in self.assignments.items():
+                for _, assignment in self.assignments.items():
                     if int(assignment.get('years', -1)) == year:
                         players = assignment.get('players', '')
                         teams = assignment.get('teams', '')
